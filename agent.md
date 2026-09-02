@@ -1,115 +1,74 @@
-# Agent.md — Build Process & Architecture
+# Agent Build Process and Architecture
 
 ## Overview
 
-This document records the AI agent's decisions, reasoning, and the resulting architecture for the **OpenAI Text-to-Speech Web Application**.
+This document explains the decisions made when building the OpenAI Text-to-Speech web application and describes how the different parts of the app work together.
 
 ---
 
-## 1. Design Decisions
+## Design Decisions
 
-### 1.1 Backend Framework — Flask
+### Backend Framework
 
-**Choice:** Flask (over FastAPI, Django, etc.)
+Flask was chosen as the backend framework because it is lightweight and simple. The app only needs to handle one route that accepts text and returns audio, which is a good fit for Flask. It also has built-in support for sending binary file responses, which is what we need for returning audio data.
 
-**Rationale:**
-- The task explicitly calls for a *lightweight* application. Flask is the de-facto standard for simple Python web apps.
-- Flask's built-in `send_file` makes streaming binary responses (audio) straightforward.
-- No async requirement — the OpenAI SDK call is blocking and each request is independent, so Flask's synchronous model is perfectly adequate.
-- Minimal boilerplate: a single `app.py` file contains all route logic.
+### Frontend
 
-### 1.2 Frontend — Static HTML + Vanilla JS + CSS
+The frontend is a single HTML file with a small amount of JavaScript and a separate CSS file. No frontend frameworks like React or Vue were used, keeping the project easy to understand and run without any build tools.
 
-**Choice:** Single `index.html` template with inline `<script>` block and a separate `style.css`.
+### Voice Instructions
 
-**Rationale:**
-- The requirement explicitly prohibits heavy frontend frameworks.
-- Inline JS avoids an extra HTTP request and keeps the codebase trivially simple.
-- A dedicated CSS file keeps style rules maintainable while still being a single static asset.
+When a user fills in the voice instructions field, the text is passed directly to the OpenAI API using the instructions parameter. This tells the model how to speak, for example with a certain tone or accent. If the field is left empty, the parameter is simply not sent.
 
-### 1.3 Voice Instructions Handling
+### Audio Handling
 
-**Choice:** Pass voice instructions directly via the OpenAI `instructions` parameter.
+The audio returned by OpenAI is stored temporarily in memory and sent straight to the browser. No audio files are saved to disk, which means there is no cleanup needed and the app stays lean.
 
-**Rationale:**
-- The OpenAI TTS API supports an `instructions` parameter that guides tone, accent, pacing, etc.
-- This is cleaner than pre-processing through a separate LLM call — it avoids extra latency, cost, and complexity.
-- If the field is left empty, the parameter is simply omitted from the API call.
+### Model Choices
 
-### 1.4 Audio File Management — In-Memory Streaming
+Two models are available:
 
-**Choice:** Buffer the OpenAI response into a `BytesIO` object and return it directly.
-
-**Rationale:**
-- No temporary files are written to disk, eliminating cleanup concerns entirely.
-- Memory usage is bounded by the size of a single audio response (typically < 5 MB).
-- Flask's `send_file` accepts file-like objects natively.
-
-### 1.5 Supported Voices
-
-All current OpenAI TTS voices are included:
-`alloy`, `ash`, `ballad`, `coral`, `echo`, `fable`, `nova`, `onyx`, `sage`, `shimmer`.
-
-### 1.6 Model Selection
-
-Users can choose between:
-- **tts-1** — Lower latency, suitable for real-time use.
-- **tts-1-hd** — Higher audio fidelity.
+- gpt-4o-mini-tts is fast and handles voice instructions well. It is the default.
+- gpt-4o-tts produces the highest quality audio and also supports voice instructions fully.
 
 ---
 
-## 2. Architecture
+## Architecture
 
 ```
-Text-to-speech/
-├── app.py                  # Flask backend (routes + OpenAI integration)
-├── requirements.txt        # Python dependencies
-├── .env.example            # Template for environment variables
-├── agent.md                # This file — build process documentation
-├── readme.md               # User-facing setup & usage guide
-├── static/
-│   └── style.css           # Stylesheet
-└── templates/
-    └── index.html          # Frontend (HTML + inline JS)
+Simple-text-to-speech/
+    app.py              Flask backend and API endpoint
+    requirements.txt    Python packages needed
+    .env.example        Template for environment variables
+    agent.md            This file
+    readme.md           User setup and usage guide
+    static/
+        style.css       Stylesheet
+    templates/
+        index.html      Frontend page
 ```
 
-### Request Flow
+### How a Request Works
 
-```
-Browser                    Flask (app.py)                 OpenAI API
-  │                            │                              │
-  │  POST /api/tts (JSON)      │                              │
-  │ ────────────────────────►  │                              │
-  │                            │  audio.speech.create(...)    │
-  │                            │ ────────────────────────────►│
-  │                            │                              │
-  │                            │  ◄── streaming audio bytes   │
-  │                            │ ◄────────────────────────────│
-  │                            │                              │
-  │  ◄── audio/mpeg or wav     │                              │
-  │ ◄──────────────────────────│                              │
-  │                            │                              │
-  │  (JS creates Blob URL,     │                              │
-  │   sets <audio> src,        │                              │
-  │   enables download link)   │                              │
-```
+1. The user fills in the form and clicks Generate Speech.
+2. The browser sends the form data as JSON to the /api/tts endpoint.
+3. Flask receives the data, validates it, and calls the OpenAI audio API.
+4. OpenAI returns the audio bytes, which Flask streams into memory.
+5. Flask sends the audio back to the browser.
+6. The browser plays the audio and enables the download link.
 
-### Key Design Principles
+### Core Principles
 
-1. **Zero disk I/O for audio** — everything stays in memory.
-2. **Input validation** — voice, format, and model are validated server-side against allow-lists.
-3. **Graceful error handling** — backend exceptions are caught and returned as JSON; the frontend displays them in a styled toast.
-4. **No frontend build step** — open `index.html` and go.
-5. **Secure API key management** — key is read from environment variables, never hard-coded.
+- Audio is never written to disk.
+- All inputs are validated on the server before calling the API.
+- Errors from the API are caught and shown to the user in a readable way.
+- The API key is read from environment variables and never stored in the code.
 
 ---
 
-## 3. Trade-offs & Future Improvements
+## Possible Future Improvements
 
-| Area | Current | Potential Improvement |
-|---|---|---|
-| Auth | None (local use) | Add API-key-per-user or session auth for deployment |
-| Rate limiting | None | Add Flask-Limiter for public deployments |
-| Caching | None | Cache identical requests (text+voice+model hash) |
-| Long text | Single API call | Chunk text into segments for inputs > 4096 chars |
-| Streaming playback | Full download then play | Stream audio chunks to browser via `ReadableStream` |
+- Add rate limiting so the app cannot be abused if made public.
+- Add caching so the same request does not call the API twice.
+- Support longer texts by splitting them into chunks before sending to the API.
+- Stream audio to the browser in real time instead of waiting for the full file.

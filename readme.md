@@ -1,162 +1,137 @@
 # OpenAI Text-to-Speech Web App
 
-A lightweight web application that converts text to natural-sounding speech using the [OpenAI TTS API](https://platform.openai.com/docs/guides/text-to-speech). Built with **Flask** (Python) and plain **HTML/CSS/JS** — no heavy frontend frameworks.
+A simple web app that turns your text into natural-sounding speech using the OpenAI API. You can choose from 10 different voices, set the tone or style, and download the result as MP3 or WAV.
 
 ---
 
-## ✨ Features
+## Before You Start
 
-- **10 voices** — Alloy, Ash, Ballad, Coral, Echo, Fable, Nova, Onyx, Sage, Shimmer
-- **Voice instructions** — guide tone, accent, pacing, and emotion
-- **Two quality tiers** — `tts-1` (fast) and `tts-1-hd` (high fidelity)
-- **MP3 & WAV** output formats
-- **In-browser playback** with one-click download
-- **No temp files** — audio is streamed in-memory
-- **Dark-themed UI** with glassmorphism and micro-animations
+Make sure you have these installed on your computer:
+
+- Python 3.9 or newer — download from https://www.python.org/downloads
+- Git — download from https://git-scm.com/downloads
+- An OpenAI API key — get one at https://platform.openai.com/api-keys
 
 ---
 
-## 📋 Prerequisites
+## Setup Guide
 
-| Requirement | Version |
-|---|---|
-| Python | 3.9 or newer |
-| pip | Latest recommended |
-| OpenAI API key | [Get one here](https://platform.openai.com/api-keys) |
+### Step 1 — Clone the project
 
----
+Open a terminal (Command Prompt or PowerShell on Windows, Terminal on Mac/Linux) and run:
 
-## 🚀 Setup & Installation
-
-### 1. Clone or download this project
-
-```bash
-cd Text-to-speech
+```
+git clone https://github.com/dinalarcode/Simple-text-to-speech.git
+cd Simple-text-to-speech
 ```
 
-### 2. Create a virtual environment (recommended)
+### Step 2 — Create a virtual environment
 
-```bash
+A virtual environment keeps the project's packages separate from the rest of your computer.
+
+```
 python -m venv venv
+```
 
-# Windows
+Then activate it:
+
+On Windows:
+```
 venv\Scripts\activate
+```
 
-# macOS / Linux
+On Mac or Linux:
+```
 source venv/bin/activate
 ```
 
-### 3. Install dependencies
+You should see `(venv)` appear at the start of your terminal line. That means it is active.
 
-```bash
+### Step 3 — Install the required packages
+
+```
 pip install -r requirements.txt
 ```
 
-### 4. Configure your OpenAI API key
+This installs Flask, the OpenAI SDK, and a few other small libraries the app needs.
 
-Copy the example file and fill in your key:
+### Step 4 — Add your OpenAI API key
 
-```bash
-copy .env.example .env        # Windows
-# cp .env.example .env        # macOS / Linux
+Copy the example file:
+
+On Windows:
+```
+copy .env.example .env
 ```
 
-Then edit `.env`:
-
-```env
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+On Mac or Linux:
+```
+cp .env.example .env
 ```
 
-> **⚠️ Never commit your `.env` file to version control.** The key should remain private.
+Open the new `.env` file with any text editor and replace the placeholder with your actual key:
 
-Alternatively, export the variable directly:
-
-```bash
-# PowerShell
-$env:OPENAI_API_KEY = "sk-..."
-
-# Bash
-export OPENAI_API_KEY="sk-..."
+```
+OPENAI_API_KEY=sk-your-actual-key-here
 ```
 
-### 5. Run the application
+Save and close the file. Keep this key private and never share it.
 
-```bash
+### Step 5 — Run the app
+
+```
 python app.py
 ```
 
-The server starts at **http://127.0.0.1:5000**. Open that URL in your browser.
-
----
-
-## 🎯 Usage
-
-1. **Enter text** in the main text area.
-2. *(Optional)* Add **voice instructions** to control tone, accent, or emotion.
-3. Pick a **voice** from the dropdown.
-4. Choose **MP3** or **WAV** format.
-5. Select the **model** (`tts-1` for speed, `tts-1-hd` for quality).
-6. Click **Generate Speech**.
-7. Listen in-browser or click **⬇ Download**.
-
----
-
-## 📁 Project Structure
+You will see something like:
 
 ```
-Text-to-speech/
-├── app.py                  # Flask backend & API endpoint
-├── requirements.txt        # Python dependencies
-├── .env.example            # Template for your API key
-├── agent.md                # Agent build process & architecture
-├── readme.md               # This file
-├── static/
-│   └── style.css           # Stylesheet (dark theme)
-└── templates/
-    └── index.html          # Frontend UI
+Running on http://127.0.0.1:5000
+```
+
+Open that address in your web browser and the app is ready to use.
+
+---
+
+## How to Use
+
+1. Type or paste the text you want to hear in the first box.
+2. Optionally, add a voice instruction in the second box, for example: "Speak slowly and in a calm tone."
+3. Choose a voice from the dropdown menu.
+4. Choose MP3 or WAV as the output format.
+5. Choose the model. Use gpt-4o-mini-tts for speed, or gpt-4o-tts for the best quality.
+6. Click Generate Speech.
+7. The audio will play automatically. Click Download to save it to your computer.
+
+---
+
+## Project Files
+
+```
+Simple-text-to-speech/
+    app.py              Flask backend and API endpoint
+    requirements.txt    Python packages needed
+    .env.example        Template for your API key
+    agent.md            How the app was built
+    readme.md           This file
+    static/
+        style.css       Stylesheet
+    templates/
+        index.html      The web page
 ```
 
 ---
 
-## 🔧 API Endpoint
+## Common Issues
 
-### `POST /api/tts`
+If the app shows a warning about OPENAI_API_KEY not being set, make sure your .env file exists and contains the correct key.
 
-**Request body** (JSON):
+If you get a 401 error, your API key is invalid or has no credit. Check your OpenAI account.
 
-```json
-{
-  "text": "Hello, world!",
-  "instructions": "Speak warmly and slowly.",
-  "voice": "nova",
-  "format": "mp3",
-  "model": "tts-1"
-}
-```
-
-| Field | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `text` | string | ✅ | — | Text to convert to speech |
-| `instructions` | string | ❌ | `""` | Tone / style guidance |
-| `voice` | string | ❌ | `alloy` | TTS voice name |
-| `format` | string | ❌ | `mp3` | `mp3` or `wav` |
-| `model` | string | ❌ | `tts-1` | `tts-1` or `tts-1-hd` |
-
-**Response:** Binary audio stream (`audio/mpeg` or `audio/wav`).
+If port 5000 is already in use, open app.py and change the port number at the bottom of the file.
 
 ---
 
-## ⚠️ Troubleshooting
+## License
 
-| Issue | Solution |
-|---|---|
-| `OPENAI_API_KEY is not set` warning | Set the key in `.env` or as an environment variable |
-| `401 Unauthorized` from OpenAI | Check that your API key is valid and has TTS access |
-| No audio plays | Check browser console for errors; ensure the key is funded |
-| Port 5000 in use | Run with `python app.py` after changing the port in `app.py` |
-
----
-
-## 📄 License
-
-This project is provided as-is for educational and personal use. The OpenAI API is subject to [OpenAI's usage policies](https://openai.com/policies/usage-policies).
+This project is for personal and educational use. The OpenAI API is subject to OpenAI's usage policies at https://openai.com/policies/usage-policies.
