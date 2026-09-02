@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Generate natural-sounding speech from text using OpenAI's TTS API. Choose voices, formats, and customize tone." />
+  <title>Text-to-Speech · OpenAI TTS</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔊</text></svg>" />
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <span class="header__icon">🔊</span>
+    <h1 class="header__title">Text-to-Speech</h1>
+    <p class="header__subtitle">Powered by OpenAI · Generate natural-sounding audio</p>
+  </header>
+
+  <!-- Main Card -->
+  <main class="card" id="tts-card">
+    <form id="tts-form" autocomplete="off">
+
+      <!-- Text Input -->
+      <div class="form-group">
+        <label class="form-label" for="text-input">Text to speak</label>
+        <textarea
+          id="text-input"
+          name="text"
+          rows="4"
+          placeholder="Type or paste the text you want to convert to speech…"
+          required
+        ></textarea>
+      </div>
+
+      <!-- Voice Instructions -->
+      <div class="form-group">
+        <label class="form-label" for="instructions-input">
+          Voice instructions
+          <span class="form-label__hint">— optional tone / style guidance</span>
+        </label>
+        <textarea
+          id="instructions-input"
+          name="instructions"
+          rows="2"
+          placeholder="e.g. Speak in a calm, warm tone with a slight British accent…"
+        ></textarea>
+      </div>
+
+      <!-- Voice & Format selectors (side-by-side) -->
+      <div class="form-row" style="margin-bottom: 1.25rem;">
+        <div class="form-group">
+          <label class="form-label" for="voice-select">Voice</label>
+          <select id="voice-select" name="voice">
+            <option value="alloy">Alloy</option>
+            <option value="ash">Ash</option>
+            <option value="ballad">Ballad</option>
+            <option value="coral">Coral</option>
+            <option value="echo">Echo</option>
+            <option value="fable">Fable</option>
+            <option value="nova" selected>Nova</option>
+            <option value="onyx">Onyx</option>
+            <option value="sage">Sage</option>
+            <option value="shimmer">Shimmer</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="format-select">Format</label>
+          <select id="format-select" name="format">
+            <option value="mp3" selected>MP3</option>
+            <option value="wav">WAV</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Model selector -->
+      <div class="form-group">
+        <label class="form-label" for="model-select">Model</label>
+        <select id="model-select" name="model">
+          <option value="gpt-4o-mini-tts" selected>gpt-4o-mini-tts — fast</option>
+          <option value="gpt-4o-tts">gpt-4o-tts — premium</option>
+        </select>
+      </div>
+
+      <!-- Submit -->
+      <button class="btn-submit" type="submit" id="submit-btn">
+        Generate Speech
+      </button>
+    </form>
+
+    <!-- Error display -->
+    <div class="error-toast" id="error-toast"></div>
+
+    <!-- Result player -->
+    <div class="result" id="result-section">
+      <p class="result__label"><span class="dot"></span> Generated Audio</p>
+      <div class="audio-wrapper">
+        <audio id="audio-player" controls></audio>
+        <a id="download-link" class="btn-download" download="speech.mp3">
+          ⬇ Download
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    Built with <a href="https://platform.openai.com/docs/guides/text-to-speech" target="_blank" rel="noopener">OpenAI TTS API</a>
+  </footer>
+
+  <!-- --------------- JS --------------- -->
+  <script>
+    (() => {
+      const form       = document.getElementById('tts-form');
+      const submitBtn  = document.getElementById('submit-btn');
+      const errorToast = document.getElementById('error-toast');
+      const resultSec  = document.getElementById('result-section');
+      const audioEl    = document.getElementById('audio-player');
+      const dlLink     = document.getElementById('download-link');
+
+      // Previous object URL (for cleanup)
+      let prevBlobUrl = null;
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // Reset UI
+        errorToast.style.display = 'none';
+        resultSec.style.display  = 'none';
+
+        const text         = document.getElementById('text-input').value.trim();
+        const instructions = document.getElementById('instructions-input').value.trim();
+        const voice        = document.getElementById('voice-select').value;
+        const format       = document.getElementById('format-select').value;
+        const model        = document.getElementById('model-select').value;
+
+        if (!text) {
+          showError('Please enter some text.');
+          return;
+        }
+
+        // Show loading state
+        submitBtn.disabled  = true;
+        submitBtn.innerHTML = '<span class="spinner"></span> Generating…';
+
+        try {
+          const res = await fetch('/api/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, instructions, voice, format, model }),
+          });
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+            throw new Error(err.error || `Server returned ${res.status}`);
+          }
+
+          const blob = await res.blob();
+
+          // Revoke previous URL to avoid memory leaks
+          if (prevBlobUrl) URL.revokeObjectURL(prevBlobUrl);
+
+          const url = URL.createObjectURL(blob);
+          prevBlobUrl = url;
+
+          // Set up audio player
+          const mime = format === 'wav' ? 'audio/wav' : 'audio/mpeg';
+          audioEl.src  = url;
+          audioEl.type = mime;
+
+          // Set up download link
+          dlLink.href     = url;
+          dlLink.download = `speech.${format}`;
+
+          resultSec.style.display = 'block';
+          audioEl.play().catch(() => {}); // auto-play (may be blocked)
+
+        } catch (err) {
+          showError(err.message);
+        } finally {
+          submitBtn.disabled  = false;
+          submitBtn.innerHTML = 'Generate Speech';
+        }
+      });
+
+      function showError(msg) {
+        errorToast.textContent   = msg;
+        errorToast.style.display = 'block';
+      }
+    })();
+  </script>
+</body>
+</html>
