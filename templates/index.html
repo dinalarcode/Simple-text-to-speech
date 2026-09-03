@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Generate natural-sounding speech from text using OpenAI's TTS API. Choose voices, formats, and customize tone." />
-  <title>Text-to-Speech · OpenAI TTS</title>
+  <meta name="description" content="Generate natural-sounding speech from text using OpenAI's TTS API or clone voices locally with Qwen3-TTS." />
+  <title>Text-to-Speech · Dual Engine</title>
   <link rel="stylesheet" href="/static/style.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔊</text></svg>" />
 </head>
@@ -14,12 +14,21 @@
   <header class="header">
     <span class="header__icon">🔊</span>
     <h1 class="header__title">Text-to-Speech</h1>
-    <p class="header__subtitle">Powered by OpenAI · Generate natural-sounding audio</p>
+    <p class="header__subtitle">OpenAI API · Local Qwen3 Voice Cloning</p>
   </header>
 
   <!-- Main Card -->
   <main class="card" id="tts-card">
     <form id="tts-form" autocomplete="off">
+
+      <!-- Engine Selector -->
+      <div class="form-group">
+        <label class="form-label" for="engine-select">Engine</label>
+        <select id="engine-select" name="engine">
+          <option value="openai" selected>OpenAI API — cloud TTS</option>
+          <option value="qwen3">Local Qwen3-TTS — voice cloning</option>
+        </select>
+      </div>
 
       <!-- Text Input -->
       <div class="form-group">
@@ -33,11 +42,11 @@
         ></textarea>
       </div>
 
-      <!-- Voice Instructions -->
+      <!-- Voice Instructions / Reference Transcript -->
       <div class="form-group">
         <label class="form-label" for="instructions-input">
-          Voice instructions
-          <span class="form-label__hint">— optional tone / style guidance</span>
+          <span id="instructions-label-text">Voice instructions</span>
+          <span class="form-label__hint" id="instructions-hint">— optional tone / style guidance</span>
         </label>
         <textarea
           id="instructions-input"
@@ -47,40 +56,63 @@
         ></textarea>
       </div>
 
-      <!-- Voice & Format selectors (side-by-side) -->
-      <div class="form-row" style="margin-bottom: 1.25rem;">
-        <div class="form-group">
-          <label class="form-label" for="voice-select">Voice</label>
-          <select id="voice-select" name="voice">
-            <option value="alloy">Alloy</option>
-            <option value="ash">Ash</option>
-            <option value="ballad">Ballad</option>
-            <option value="coral">Coral</option>
-            <option value="echo">Echo</option>
-            <option value="fable">Fable</option>
-            <option value="nova" selected>Nova</option>
-            <option value="onyx">Onyx</option>
-            <option value="sage">Sage</option>
-            <option value="shimmer">Shimmer</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="format-select">Format</label>
-          <select id="format-select" name="format">
-            <option value="mp3" selected>MP3</option>
-            <option value="wav">WAV</option>
-          </select>
+      <!-- Reference Audio Upload (Qwen3 only) -->
+      <div class="form-group form-group--hidden" id="ref-audio-group">
+        <label class="form-label" for="ref-audio-input">
+          Reference audio
+          <span class="form-label__hint">— upload a voice sample to clone (3+ seconds recommended)</span>
+        </label>
+        <div class="file-input-wrapper">
+          <input
+            type="file"
+            id="ref-audio-input"
+            name="reference_audio"
+            accept="audio/*"
+          />
+          <div class="file-input-label" id="file-input-label">
+            <span class="file-input-icon">📎</span>
+            <span class="file-input-text">Choose an audio file…</span>
+          </div>
         </div>
       </div>
 
-      <!-- Model selector -->
-      <div class="form-group">
-        <label class="form-label" for="model-select">Model</label>
-        <select id="model-select" name="model">
-          <option value="gpt-4o-mini-tts" selected>gpt-4o-mini-tts — fast</option>
-          <option value="gpt-4o-tts">gpt-4o-tts — premium</option>
-        </select>
+      <!-- OpenAI-specific options -->
+      <div id="openai-options">
+        <!-- Voice & Format selectors (side-by-side) -->
+        <div class="form-row" style="margin-bottom: 1.25rem;">
+          <div class="form-group">
+            <label class="form-label" for="voice-select">Voice</label>
+            <select id="voice-select" name="voice">
+              <option value="alloy">Alloy</option>
+              <option value="ash">Ash</option>
+              <option value="ballad">Ballad</option>
+              <option value="coral">Coral</option>
+              <option value="echo">Echo</option>
+              <option value="fable">Fable</option>
+              <option value="nova" selected>Nova</option>
+              <option value="onyx">Onyx</option>
+              <option value="sage">Sage</option>
+              <option value="shimmer">Shimmer</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="format-select">Format</label>
+            <select id="format-select" name="format">
+              <option value="mp3" selected>MP3</option>
+              <option value="wav">WAV</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Model selector -->
+        <div class="form-group">
+          <label class="form-label" for="model-select">Model</label>
+          <select id="model-select" name="model">
+            <option value="gpt-4o-mini-tts" selected>gpt-4o-mini-tts — fast</option>
+            <option value="gpt-4o-tts">gpt-4o-tts — premium</option>
+          </select>
+        </div>
       </div>
 
       <!-- Submit -->
@@ -106,7 +138,10 @@
 
   <!-- Footer -->
   <footer class="footer">
-    Built with <a href="https://platform.openai.com/docs/guides/text-to-speech" target="_blank" rel="noopener">OpenAI TTS API</a>
+    Built with
+    <a href="https://platform.openai.com/docs/guides/text-to-speech" target="_blank" rel="noopener">OpenAI TTS API</a>
+    &
+    <a href="https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base" target="_blank" rel="noopener">Qwen3-TTS</a>
   </footer>
 
   <!-- --------------- JS --------------- -->
@@ -119,9 +154,61 @@
       const audioEl    = document.getElementById('audio-player');
       const dlLink     = document.getElementById('download-link');
 
+      // Engine-specific UI elements
+      const engineSelect       = document.getElementById('engine-select');
+      const openaiOptions      = document.getElementById('openai-options');
+      const refAudioGroup      = document.getElementById('ref-audio-group');
+      const refAudioInput      = document.getElementById('ref-audio-input');
+      const fileInputLabel     = document.getElementById('file-input-label');
+      const instructionsLabel  = document.getElementById('instructions-label-text');
+      const instructionsHint   = document.getElementById('instructions-hint');
+      const instructionsInput  = document.getElementById('instructions-input');
+
       // Previous object URL (for cleanup)
       let prevBlobUrl = null;
 
+      // ------------------------------------------------------------------
+      // Engine toggle — show/hide relevant controls
+      // ------------------------------------------------------------------
+      engineSelect.addEventListener('change', () => {
+        const isQwen = engineSelect.value === 'qwen3';
+
+        // Toggle OpenAI-specific options
+        openaiOptions.classList.toggle('form-group--hidden', isQwen);
+
+        // Toggle reference audio upload
+        refAudioGroup.classList.toggle('form-group--hidden', !isQwen);
+
+        // Relabel the instructions field based on engine
+        if (isQwen) {
+          instructionsLabel.textContent = 'Reference audio transcript';
+          instructionsHint.textContent  = '— type what is spoken in the uploaded audio';
+          instructionsInput.placeholder = 'e.g. Hello, my name is Sarah and I love reading books…';
+        } else {
+          instructionsLabel.textContent = 'Voice instructions';
+          instructionsHint.textContent  = '— optional tone / style guidance';
+          instructionsInput.placeholder = 'e.g. Speak in a calm, warm tone with a slight British accent…';
+        }
+      });
+
+      // ------------------------------------------------------------------
+      // Custom file input display
+      // ------------------------------------------------------------------
+      refAudioInput.addEventListener('change', () => {
+        const fileName = refAudioInput.files[0]?.name;
+        const textEl   = fileInputLabel.querySelector('.file-input-text');
+        if (fileName) {
+          textEl.textContent = fileName;
+          fileInputLabel.classList.add('file-input-label--selected');
+        } else {
+          textEl.textContent = 'Choose an audio file…';
+          fileInputLabel.classList.remove('file-input-label--selected');
+        }
+      });
+
+      // ------------------------------------------------------------------
+      // Form submission
+      // ------------------------------------------------------------------
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -129,15 +216,35 @@
         errorToast.style.display = 'none';
         resultSec.style.display  = 'none';
 
+        const engine       = engineSelect.value;
         const text         = document.getElementById('text-input').value.trim();
-        const instructions = document.getElementById('instructions-input').value.trim();
-        const voice        = document.getElementById('voice-select').value;
-        const format       = document.getElementById('format-select').value;
-        const model        = document.getElementById('model-select').value;
+        const instructions = instructionsInput.value.trim();
 
         if (!text) {
           showError('Please enter some text.');
           return;
+        }
+
+        // Qwen3 requires a reference audio file
+        if (engine === 'qwen3' && (!refAudioInput.files || refAudioInput.files.length === 0)) {
+          showError('Please upload a reference audio file for voice cloning.');
+          return;
+        }
+
+        // Build multipart/form-data payload
+        const fd = new FormData();
+        fd.append('engine', engine);
+        fd.append('text', text);
+        fd.append('instructions', instructions);
+
+        if (engine === 'openai') {
+          fd.append('voice', document.getElementById('voice-select').value);
+          fd.append('format', document.getElementById('format-select').value);
+          fd.append('model', document.getElementById('model-select').value);
+        }
+
+        if (engine === 'qwen3' && refAudioInput.files[0]) {
+          fd.append('reference_audio', refAudioInput.files[0]);
         }
 
         // Show loading state
@@ -147,8 +254,9 @@
         try {
           const res = await fetch('/api/tts', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, instructions, voice, format, model }),
+            body: fd,
+            // Do NOT set Content-Type — the browser auto-sets the
+            // correct multipart boundary when using FormData.
           });
 
           if (!res.ok) {
@@ -164,14 +272,17 @@
           const url = URL.createObjectURL(blob);
           prevBlobUrl = url;
 
+          // Determine format for download name
+          const fmt  = engine === 'qwen3' ? 'wav' : document.getElementById('format-select').value;
+          const mime = fmt === 'wav' ? 'audio/wav' : 'audio/mpeg';
+
           // Set up audio player
-          const mime = format === 'wav' ? 'audio/wav' : 'audio/mpeg';
           audioEl.src  = url;
           audioEl.type = mime;
 
           // Set up download link
           dlLink.href     = url;
-          dlLink.download = `speech.${format}`;
+          dlLink.download = `speech.${fmt}`;
 
           resultSec.style.display = 'block';
           audioEl.play().catch(() => {}); // auto-play (may be blocked)
